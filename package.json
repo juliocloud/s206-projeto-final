@@ -1,0 +1,16 @@
+{
+  "name": "s206-jest-projeto",
+  "version": "0.0.1",
+  "description": "Trabalho Pratico S206 - Testes de Integração com Jest",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --verbose"
+  },
+  "author": "Grupo S206",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  }
+}
