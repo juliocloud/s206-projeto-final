@@ -15,6 +15,11 @@ describe("Testes de integração - API Catálogo Musical (S206)", () => {
     await prisma.track.deleteMany({});
     await prisma.album.deleteMany({});
     await prisma.artist.deleteMany({});
+    try {
+      await prisma.$executeRaw`DELETE FROM "Label"`;
+    } catch (e) {
+      // ignore if table does not exist
+    }
     await prisma.user.deleteMany({});
 
     await request(app).post("/auth/register").send({
@@ -34,6 +39,11 @@ describe("Testes de integração - API Catálogo Musical (S206)", () => {
     await prisma.track.deleteMany({});
     await prisma.album.deleteMany({});
     await prisma.artist.deleteMany({});
+    try {
+      await prisma.$executeRaw`DELETE FROM "Label"`;
+    } catch (e) {
+      // ignore if table does not exist
+    }
     jest.clearAllMocks();
   });
 
@@ -285,6 +295,107 @@ describe("Testes de integração - API Catálogo Musical (S206)", () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("lyrics", null);
+    });
+  });
+
+  describe("Record Labels (Record Label)", () => {
+    it("Create label with valid data", async () => {
+      const response = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Som Livre", country: "BR" });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty("id");
+      expect(response.body.name).toBe("Som Livre");
+
+      const check = await request(app).get(`/labels/${response.body.id}`);
+      expect(check.status).toBe(200);
+    });
+
+    it("Creating duplicate label returns 409", async () => {
+      await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Som Livre" });
+
+      const response = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Som Livre" });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe(errors.NAME_ALREADY_EXISTS);
+    });
+
+    it("Creating label with empty payload returns 400", async () => {
+      const response = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe(errors.REQUIRED_FIELD);
+    });
+
+    it("List labels", async () => {
+      await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "A" });
+      await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "B" });
+
+      const response = await request(app).get("/labels");
+
+      expect(response.status).toBe(200);
+      expect(response.body.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("Get label by id", async () => {
+      const created = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Deck" });
+
+      const response = await request(app).get(`/labels/${created.body.id}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.name).toBe("Deck");
+    });
+
+    it("Update label", async () => {
+      const created = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "OldName", country: "US" });
+
+      const response = await request(app)
+        .put(`/labels/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "NewName", country: "BR" });
+
+      expect(response.status).toBe(200);
+      expect(response.body.name).toBe("NewName");
+      expect(response.body.country).toBe("BR");
+    });
+
+    it("Delete label", async () => {
+      const created = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "ToDelete" });
+
+      const response = await request(app)
+        .delete(`/labels/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(204);
+
+      const check = await request(app).get(`/labels/${created.body.id}`);
+      expect(check.status).toBe(404);
     });
   });
 });

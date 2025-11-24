@@ -204,4 +204,108 @@ app.get("/tracks/:id", async (req, res) => {
   }
 });
 
+// Labels (Record Labels)
+app.get("/labels", async (req, res) => {
+  try {
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Label" (
+      "id" SERIAL PRIMARY KEY,
+      "name" TEXT NOT NULL UNIQUE,
+      "country" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT now()
+    )`;
+
+    const labels: any[] = await prisma.$queryRaw`SELECT * FROM "Label" ORDER BY id`;
+    res.json(labels);
+  } catch (error) {
+    res.status(500).json({ error: errors.FAILED_TO_RETRIEVE });
+  }
+});
+
+app.post("/labels", authenticateToken, async (req, res) => {
+  const { name, country } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: errors.REQUIRED_FIELD });
+  }
+
+  try {
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Label" (
+      "id" SERIAL PRIMARY KEY,
+      "name" TEXT NOT NULL UNIQUE,
+      "country" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now(),
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT now()
+    )`;
+
+    const inserted: any = await prisma.$queryRaw`
+      INSERT INTO "Label" ("name", "country") VALUES (${name}, ${country}) RETURNING *
+    `;
+
+    res.status(201).json(inserted[0] ?? inserted);
+  } catch (error: any) {
+    // Duplicate key
+    console.error(error);
+    if (
+      error?.code === "23505" ||
+      error?.meta?.code === "23505" ||
+      error?.code === "P2010" ||
+      (error?.message && error.message.includes("duplicate key"))
+    ) {
+      return res.status(409).json({ error: errors.NAME_ALREADY_EXISTS });
+    }
+    res.status(500).json({ error: errors.FAILED_TO_CREATE });
+  }
+});
+
+app.get("/labels/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM "Label" WHERE id = ${id}`;
+    const label = rows[0];
+    if (!label) {
+      return res.status(404).json({ error: errors.NOT_FOUND });
+    }
+    res.json(label);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: errors.FAILED_TO_RETRIEVE });
+  }
+});
+
+app.put("/labels/:id", authenticateToken, async (req, res) => {
+  const id = Number(req.params.id);
+  const { name, country } = req.body;
+  try {
+    const rows: any = await prisma.$queryRaw`
+      UPDATE "Label" SET "name" = ${name}, "country" = ${country}, "updatedAt" = now() WHERE id = ${id} RETURNING *
+    `;
+    const updated = rows[0];
+    if (!updated) return res.status(404).json({ error: errors.NOT_FOUND });
+    res.json(updated);
+  } catch (error: any) {
+    console.error(error);
+    if (
+      error?.code === "23505" ||
+      error?.meta?.code === "23505" ||
+      error?.code === "P2010" ||
+      (error?.message && error.message.includes("duplicate key"))
+    ) {
+      return res.status(409).json({ error: errors.NAME_ALREADY_EXISTS });
+    }
+    res.status(500).json({ error: errors.FAILED_TO_RETRIEVE });
+  }
+});
+
+app.delete("/labels/:id", authenticateToken, async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const result: any = await prisma.$queryRaw`DELETE FROM "Label" WHERE id = ${id} RETURNING *`;
+    const deleted = result[0];
+    if (!deleted) return res.status(404).json({ error: errors.NOT_FOUND });
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: errors.FAILED_TO_RETRIEVE });
+  }
+});
+
 export default app;
