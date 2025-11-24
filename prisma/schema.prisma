@@ -29,6 +29,8 @@ model Album {
   artistId  Int
   artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Restrict)
   tracks    Track[]
+  gravadoraId Int? 
+  gravadora   Gravadora? @relation(fields: [gravadoraId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -39,6 +41,15 @@ model Track {
   duration  Int
   albumId   Int
   album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Gravadora {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  country   String?
+  albums    Album[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
