@@ -1,6 +1,7 @@
 import request from "supertest";
 import { PrismaClient } from "@prisma/client";
 import app from "../src/app";
+import { errors } from "../src/constants/errors";
 
 const prisma = new PrismaClient();
 
@@ -18,7 +19,7 @@ describe("Testes de integração com a API de artistas (S206)", () => {
   });
 
   it("deve criar um artista (POST /artists)", async () => {
-    const newArtist = { name: "New Artist Name" };
+    const newArtist = { name: "Matue" };
     const response = await request(app).post("/artists").send(newArtist);
 
     expect(response.status).toBe(201);
@@ -33,7 +34,7 @@ describe("Testes de integração com a API de artistas (S206)", () => {
 
   it("deve buscar todos os artistas (GET /artists)", async () => {
     await prisma.artist.createMany({
-      data: [{ name: "Artist A" }, { name: "Artist B" }],
+      data: [{ name: "Laufey" }, { name: "Charlie Brown" }],
     });
 
     const response = await request(app).get("/artists");
@@ -49,11 +50,11 @@ describe("Testes de integração com a API de artistas (S206)", () => {
     const response = await request(app).post("/artists").send({});
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe("Artist name is required");
+    expect(response.body.error).toBe(errors.REQUIRED_ARTIST_NAME);
   });
 
   it("deve retornar 409 se nome do artista duplicado", async () => {
-    const artistName = "Existing Artist";
+    const artistName = "Milton Nascimento";
     await prisma.artist.create({ data: { name: artistName } });
 
     const response = await request(app)
@@ -61,6 +62,14 @@ describe("Testes de integração com a API de artistas (S206)", () => {
       .send({ name: artistName });
 
     expect(response.status).toBe(409);
-    expect(response.body.error).toBe("Artist with this name already exists");
+    expect(response.body.error).toBe(errors.NAME_ALREADY_EXISTS);
+  });
+
+  it("deve retornar array vazio se sem artistas(GET /artists)", async () => {
+    const response = await request(app).get("/artists");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toBeInstanceOf(Array);
+    expect(response.body.length).toBe(0);
   });
 });
