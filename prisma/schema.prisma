@@ -10,6 +10,27 @@ datasource db {
 model Artist {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  albums    Album[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Album {
+  id        Int      @id @default(autoincrement())
+  name      String
+  artistId  Int
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Restrict)
+  tracks    Track[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Track {
+  id        Int      @id @default(autoincrement())
+  name      String
+  duration  Int
+  albumId   Int
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
