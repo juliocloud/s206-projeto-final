@@ -42,8 +42,8 @@ describe("Testes de integração com a API de artistas (S206)", () => {
     expect(response.status).toBe(200);
     expect(response.body).toBeInstanceOf(Array);
     expect(response.body.length).toBe(2);
-    expect(response.body[0].name).toBe("Artist A");
-    expect(response.body[1].name).toBe("Artist B");
+    expect(response.body[0].name).toBe("Laufey");
+    expect(response.body[1].name).toBe("Charlie Brown");
   });
 
   it("deve retornar 400 se o nome do artista ta faltando", async () => {
