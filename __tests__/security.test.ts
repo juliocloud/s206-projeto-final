@@ -27,9 +27,15 @@ describe("Testes de segurança e controle de acesso", () => {
   });
 
   afterAll(async () => {
-    await prisma.track.deleteMany({});
-    await prisma.album.deleteMany({});
-    await prisma.artist.deleteMany({});
+    try {
+      await prisma.track.deleteMany({});
+      await prisma.album.deleteMany({});
+      await prisma.artist.deleteMany({});
+    } catch (e) {
+      await prisma.$executeRaw`DELETE FROM "Track"`;
+      await prisma.$executeRaw`DELETE FROM "Album"`;
+      await prisma.$executeRaw`DELETE FROM "Artist"`;
+    }
     await prisma.user.deleteMany({});
     await prisma.$disconnect();
   });
@@ -89,6 +95,42 @@ describe("Testes de segurança e controle de acesso", () => {
     it("Acesso público (GET) deve continuar funcionando sem Token", async () => {
       const res = await request(app).get("/artists");
       expect(res.status).toBe(200);
+    });
+
+    it("Should not allow creating Label without Token", async () => {
+      const res = await request(app).post("/labels").send({ name: "NoAuth" });
+      expect(res.status).toBe(401);
+    });
+
+    it("Should allow creating Label with valid Token", async () => {
+      const res = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "AuthLabel" });
+
+      expect(res.status).toBe(201);
+    });
+
+    it("Should not allow updating Label without Token", async () => {
+      // create with token
+      const created = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "ToUpdate" });
+
+      const res = await request(app).put(`/labels/${created.body.id}`).send({ name: "X" });
+      expect(res.status).toBe(401);
+    });
+
+    it("Should not allow deleting Label without Token", async () => {
+      // create with token
+      const created = await request(app)
+        .post("/labels")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "ToDeleteNoAuth" });
+
+      const res = await request(app).delete(`/labels/${created.body.id}`);
+      expect(res.status).toBe(401);
     });
   });
 });
