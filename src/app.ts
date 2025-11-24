@@ -1,12 +1,65 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { errors } from "./constants/errors";
 import { getLyrics } from "./services/lyricsService";
+import { authenticateToken, SECRET_KEY } from "./middleware/auth";
 
 const app = express();
 const prisma = new PrismaClient();
 
 app.use(express.json());
+
+app.post("/auth/register", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: errors.REQUIRED_FIELD });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+      },
+    });
+    res.status(201).json({ id: user.id, email: user.email });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: errors.EMAIL_ALREADY_EXISTS });
+    }
+    res.status(500).json({ error: errors.FAILED_TO_CREATE });
+  }
+});
+
+app.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: errors.REQUIRED_FIELD });
+  }
+
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    return res.status(401).json({ error: errors.INVALID_CREDENTIALS });
+  }
+
+  const validPassword = await bcrypt.compare(password, user.password);
+
+  if (!validPassword) {
+    return res.status(401).json({ error: errors.INVALID_CREDENTIALS });
+  }
+
+  const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, {
+    expiresIn: "1h",
+  });
+
+  res.json({ token });
+});
 
 app.get("/artists", async (req, res) => {
   try {
@@ -17,7 +70,7 @@ app.get("/artists", async (req, res) => {
   }
 });
 
-app.post("/artists", async (req, res) => {
+app.post("/artists", authenticateToken, async (req, res) => {
   const { name } = req.body;
   if (!name) {
     return res.status(400).json({ error: errors.REQUIRED_ARTIST_NAME });
@@ -36,7 +89,7 @@ app.post("/artists", async (req, res) => {
   }
 });
 
-app.delete("/artists/:id", async (req, res) => {
+app.delete("/artists/:id", authenticateToken, async (req, res) => {
   const id = Number(req.params.id);
 
   try {
@@ -61,7 +114,7 @@ app.delete("/artists/:id", async (req, res) => {
   }
 });
 
-app.post("/albums", async (req, res) => {
+app.post("/albums", authenticateToken, async (req, res) => {
   const { name, artistId } = req.body;
 
   if (!name || !artistId) {
@@ -96,7 +149,7 @@ app.get("/artists/:id/albums", async (req, res) => {
   }
 });
 
-app.post("/tracks", async (req, res) => {
+app.post("/tracks", authenticateToken, async (req, res) => {
   const { name, duration, albumId } = req.body;
 
   if (!name || duration === undefined || !albumId) {
@@ -137,7 +190,6 @@ app.get("/tracks/:id", async (req, res) => {
       return res.status(404).json({ error: errors.NOT_FOUND });
     }
 
-    // Fetch external lyrics
     let lyrics = null;
     try {
       lyrics = await getLyrics();
