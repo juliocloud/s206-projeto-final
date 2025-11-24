@@ -3,9 +3,9 @@ import type { Config } from "jest";
 const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
-  testMatch: ["**/__tests__/**/*.ts"], // Ensure it only picks up .ts files
+  testMatch: ["**/__tests__/**/*.ts"],
   verbose: true,
-  setupFilesAfterEnv: [], // If you had any setup files
+  setupFilesAfterEnv: [],
 };
 
 export default config;
