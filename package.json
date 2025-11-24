@@ -1,16 +1,33 @@
 {
   "name": "s206-jest-projeto",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Trabalho Pratico S206 - Testes de Integração com Jest",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "jest --verbose"
+    "start": "node dist/server.js",
+    "dev": "nodemon src/server.ts",
+    "build": "tsc",
+    "test": "jest --verbose",
+    "prisma:migrate": "npx prisma migrate dev --name init",
+    "prisma:generate": "npx prisma generate"
   },
   "author": "Grupo S206",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "@prisma/client": "^5.x.x",
+    "express": "^4.x.x"
+  },
   "devDependencies": {
+    "@types/express": "^4.x.x",
+    "@types/jest": "^29.x.x",
+    "@types/node": "^20.x.x",
+    "@types/supertest": "^2.x.x",
     "jest": "^29.7.0",
-    "supertest": "^6.3.3"
+    "nodemon": "^3.x.x",
+    "prisma": "^5.x.x",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.x.x",
+    "ts-node": "^10.x.x",
+    "typescript": "^5.x.x"
   }
 }
