@@ -1,6 +1,6 @@
--- Migration: add Gravadora
+-- Migration: add Label
 
-CREATE TABLE "Gravadora" (
+CREATE TABLE "Label" (
     "id" SERIAL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "country" TEXT,
@@ -8,11 +8,11 @@ CREATE TABLE "Gravadora" (
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX "Gravadora_name_key" ON "Gravadora" ("name");
+CREATE UNIQUE INDEX "Label_name_key" ON "Label" ("name");
 
 -- Add column to Album
-ALTER TABLE "Album" ADD COLUMN "gravadoraId" INTEGER;
+ALTER TABLE "Album" ADD COLUMN "labelId" INTEGER;
 
 -- Add FK constraint with SET NULL on delete
 ALTER TABLE "Album"
-  ADD CONSTRAINT "Album_gravadoraId_fkey" FOREIGN KEY ("gravadoraId") REFERENCES "Gravadora"("id") ON DELETE SET NULL;
+  ADD CONSTRAINT "Album_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "Label"("id") ON DELETE SET NULL;

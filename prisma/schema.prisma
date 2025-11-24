@@ -29,8 +29,8 @@ model Album {
   artistId  Int
   artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Restrict)
   tracks    Track[]
-  gravadoraId Int? 
-  gravadora   Gravadora? @relation(fields: [gravadoraId], references: [id], onDelete: SetNull)
+  labelId Int?
+  label   Label? @relation(fields: [labelId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -45,7 +45,7 @@ model Track {
   updatedAt DateTime @updatedAt
 }
 
-model Gravadora {
+model Label {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   country   String?
