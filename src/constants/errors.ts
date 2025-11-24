@@ -10,4 +10,7 @@ export const errors = {
   INVALID_DURATION: "Duração inválida",
   POSITIVE_DURATION: "Duração deve ser positiva",
   ARTIST_HAS_ALBUMS: "Não é possível excluir artista com álbuns cadastrados",
+  EMAIL_ALREADY_EXISTS: "Email já cadastrado",
+  INVALID_CREDENTIALS: "Email ou senha inválidos",
+  UNAUTHORIZED: "Acesso não autorizado. Token inválido ou ausente.",
 };
