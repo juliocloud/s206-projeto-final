@@ -5,7 +5,18 @@ const config: Config = {
   testEnvironment: "node",
   testMatch: ["**/__tests__/**/*.ts"],
   verbose: true,
-  setupFilesAfterEnv: [],
+
+  reporters: [
+    "default",
+    [
+      "jest-html-reporters",
+      {
+        publicPath: "./html-report",
+        filename: "index.html",
+        expand: true
+      }
+    ]
+  ],
 };
 
 export default config;
