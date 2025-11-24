@@ -8,11 +8,26 @@ const prisma = new PrismaClient();
 
 jest.mock("../src/services/lyricsService");
 
-describe("Testes de Integração - API Catálogo Musical (S206)", () => {
+describe("Testes de integração - API Catálogo Musical (S206)", () => {
+  let token: string;
+
   beforeAll(async () => {
     await prisma.track.deleteMany({});
     await prisma.album.deleteMany({});
     await prisma.artist.deleteMany({});
+    await prisma.user.deleteMany({});
+
+    await request(app).post("/auth/register").send({
+      email: "chris@o_brabo.com",
+      password: "password123",
+    });
+
+    const loginResponse = await request(app).post("/auth/login").send({
+      email: "chris@o_brabo.com",
+      password: "password123",
+    });
+
+    token = loginResponse.body.token;
   });
 
   afterEach(async () => {
@@ -23,18 +38,20 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
   });
 
   afterAll(async () => {
+    await prisma.user.deleteMany({});
     await prisma.$disconnect();
   });
 
-  describe("Gestão de Artistas (Artists)", () => {
-    it("Criar um artista com dados válidos", async () => {
+  describe("Gestão de Artistas", () => {
+    it("Criar artista com dados validos", async () => {
       const response = await request(app)
         .post("/artists")
-        .send({ name: "Queen" });
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Lo Borges" });
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("id");
-      expect(response.body.name).toBe("Queen");
+      expect(response.body.name).toBe("Lo Borges");
 
       const dbArtist = await prisma.artist.findUnique({
         where: { id: response.body.id },
@@ -43,26 +60,30 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
     });
 
     it("Tentar criar artista com nome duplicado", async () => {
-      await prisma.artist.create({ data: { name: "Queen" } });
+      await prisma.artist.create({ data: { name: "Lo Borges" } });
 
       const response = await request(app)
         .post("/artists")
-        .send({ name: "Queen" });
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Lo Borges" });
 
       expect(response.status).toBe(409);
       expect(response.body.error).toBe(errors.NAME_ALREADY_EXISTS);
     });
 
     it("Tentar criar artista com payload vazio", async () => {
-      const response = await request(app).post("/artists").send({});
+      const response = await request(app)
+        .post("/artists")
+        .set("Authorization", `Bearer ${token}`)
+        .send({});
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe(errors.REQUIRED_ARTIST_NAME);
     });
 
-    it("Buscar lista de artistas (com dados)", async () => {
+    it("Buscar lista de artistas", async () => {
       await prisma.artist.createMany({
-        data: [{ name: "Alee" }, { name: "Brandao" }],
+        data: [{ name: "Mamonas Assassinas" }, { name: "Natiruts" }],
       });
 
       const response = await request(app).get("/artists");
@@ -79,27 +100,33 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
     });
   });
 
-  describe("Gestão de Álbuns (Albums)", () => {
-    it("Criar álbum para um artista existente", async () => {
+  describe("Gestão de albuns", () => {
+    it("Criar álbum para artista existente", async () => {
       const artist = await prisma.artist.create({
-        data: { name: "Milton Nascimento" },
+        data: { name: "Pink Floyd" },
       });
 
-      const response = await request(app).post("/albums").send({
-        name: "Clube da Esquina",
-        artistId: artist.id,
-      });
+      const response = await request(app)
+        .post("/albums")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: "The Wall",
+          artistId: artist.id,
+        });
 
       expect(response.status).toBe(201);
       expect(response.body.artistId).toBe(artist.id);
-      expect(response.body.name).toBe("Clube da esquina");
+      expect(response.body.name).toBe("The Wall");
     });
 
     it("Tentar criar álbum para artista inexistente", async () => {
-      const response = await request(app).post("/albums").send({
-        name: "Renaissance",
-        artistId: 9999,
-      });
+      const response = await request(app)
+        .post("/albums")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: "Artista fantasma",
+          artistId: 9999,
+        });
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe(errors.ARTIST_NOT_FOUND);
@@ -107,81 +134,92 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
 
     it("Listar álbuns de um artista específico", async () => {
       const artist1 = await prisma.artist.create({
-        data: { name: "Polyphia" },
+        data: { name: "Led Zeppelin" },
       });
       const artist2 = await prisma.artist.create({
-        data: { name: "Matue" },
+        data: { name: "Devo" },
       });
 
       await prisma.album.create({
-        data: { name: "RTYWD", artistId: artist1.id },
+        data: { name: "Led Zeppelin IV", artistId: artist1.id },
       });
       await prisma.album.create({
-        data: { name: "Xtranho", artistId: artist2.id },
+        data: { name: "Whip it", artistId: artist2.id },
       });
 
       const response = await request(app).get(`/artists/${artist1.id}/albums`);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveLength(1);
-      expect(response.body[0].name).toBe("Album A1");
+      expect(response.body[0].name).toBe("Led Zeppelin IV");
     });
   });
 
-  describe("Gestão de Faixas (Tracks)", () => {
+  describe("Gestão de Faixas", () => {
     let albumId: number;
 
     beforeEach(async () => {
       const artist = await prisma.artist.create({
-        data: { name: "Periphery" },
+        data: { name: "Greta Van Fleet" },
       });
       const album = await prisma.album.create({
-        data: { name: "Periphery V", artistId: artist.id },
+        data: { name: "Starcatcher", artistId: artist.id },
       });
       albumId = album.id;
     });
 
     it("Criar faixa com duração válida", async () => {
-      const response = await request(app).post("/tracks").send({
-        name: "Lugar ao sol",
-        duration: 180,
-        albumId: albumId,
-      });
+      const response = await request(app)
+        .post("/tracks")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: "track valida",
+          duration: 180,
+          albumId: albumId,
+        });
 
       expect(response.status).toBe(201);
       expect(response.body.duration).toBe(180);
     });
 
     it("Tentar criar faixa com duração negativa", async () => {
-      const response = await request(app).post("/tracks").send({
-        name: "Passado de um vilão",
-        duration: -10,
-        albumId: albumId,
-      });
+      const response = await request(app)
+        .post("/tracks")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: "track negativa",
+          duration: -10,
+          albumId: albumId,
+        });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe(errors.POSITIVE_DURATION);
     });
 
     it("Tentar criar faixa com duração zero", async () => {
-      const response = await request(app).post("/tracks").send({
-        name: "Fiat 1995",
-        duration: 0,
-        albumId: albumId,
-      });
+      const response = await request(app)
+        .post("/tracks")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          name: "track zero minutos da silva",
+          duration: 0,
+          albumId: albumId,
+        });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe(errors.INVALID_DURATION);
     });
   });
 
-  describe("Integridade e Exclusão", () => {
+  describe("Integridade e exclusão", () => {
     it("Excluir artista sem álbuns", async () => {
       const artist = await prisma.artist.create({
-        data: { name: "Ana Castela" },
+        data: { name: "Simone" },
       });
 
-      const response = await request(app).delete(`/artists/${artist.id}`);
+      const response = await request(app)
+        .delete(`/artists/${artist.id}`)
+        .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(204);
 
@@ -193,13 +231,15 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
 
     it("Tentar excluir artista que possui álbuns", async () => {
       const artist = await prisma.artist.create({
-        data: { name: "Jorge e Matheus" },
+        data: { name: "Sabrina Carpenter" },
       });
       await prisma.album.create({
-        data: { name: "Jorge e Matheus IV", artistId: artist.id },
+        data: { name: "SNS", artistId: artist.id },
       });
 
-      const response = await request(app).delete(`/artists/${artist.id}`);
+      const response = await request(app)
+        .delete(`/artists/${artist.id}`)
+        .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(409);
       expect(response.body.error).toBe(errors.ARTIST_HAS_ALBUMS);
@@ -211,32 +251,32 @@ describe("Testes de Integração - API Catálogo Musical (S206)", () => {
     });
   });
 
-  describe("Integração com Serviços Externos", () => {
+  describe("Integração com serviços externos", () => {
     let trackId: number;
 
     beforeEach(async () => {
       const artist = await prisma.artist.create({
-        data: { name: "Alee" },
+        data: { name: "Carole King" },
       });
       const album = await prisma.album.create({
-        data: { name: "Dias antes do caos", artistId: artist.id },
+        data: { name: "Tapestry", artistId: artist.id },
       });
       const track = await prisma.track.create({
-        data: { name: "Segredo", duration: 200, albumId: album.id },
+        data: { name: "It's too late", duration: 200, albumId: album.id },
       });
       trackId = track.id;
     });
 
-    it("Faixa (API Externa Online)", async () => {
-      (lyricsService.getLyrics as jest.Mock).mockResolvedValue("La la la");
+    it("GET Faixa (API Externa)", async () => {
+      (lyricsService.getLyrics as jest.Mock).mockResolvedValue("La la la...");
 
       const response = await request(app).get(`/tracks/${trackId}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("lyrics", "La la la");
+      expect(response.body).toHaveProperty("lyrics", "La la la...");
     });
 
-    it("GET Faixa (API Externa Offline/Timeout)", async () => {
+    it("Faixa (API Externa Offline/Timeout)", async () => {
       (lyricsService.getLyrics as jest.Mock).mockRejectedValue(
         new Error("API Timeout"),
       );
